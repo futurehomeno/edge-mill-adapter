@@ -2,6 +2,7 @@ package router
 
 import (
 	"math"
+	"reflect"
 	"strconv"
 
 	mill "github.com/futurehomeno/edge-mill-adapter/millapi"
@@ -23,7 +24,15 @@ func (fc *FromFimpRouter) setpointSet(oldMsg *fimpgo.Message, config mill.Config
 	newTemp := strconv.Itoa(int(math.Ceil(valFloat)))
 	deviceID := addr
 
-	if err := config.TempControl(fc.configs.Auth.AccessToken, deviceID, newTemp); err != nil {
+	deviceIndex, err := fc.states.FindDeviceFromDeviceID(addr)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	device := reflect.ValueOf(fc.states.DeviceCollection[deviceIndex])
+	subDomainID := device.FieldByName("SubDomainID").Interface().(int)
+
+	if err := config.TempControl(fc.configs.Auth.AccessToken, deviceID, newTemp, subDomainID); err != nil {
 		log.Error("Something went wrong when changing temperature, err: ", err)
 		return
 	}

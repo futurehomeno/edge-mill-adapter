@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/futurehomeno/edge-mill-adapter/model"
 
@@ -15,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Constants for API requests
 const (
 	// DefaultBaseURL is mill api url
 	baseURL = "https://api.millheat.com/"
@@ -27,14 +29,26 @@ const (
 
 	// deviceControlForOpenApiURL is mill api to controll individual devices
 	deviceControlURL = baseURL + "uds/deviceControlForOpenApi"
+	// gen2DeviceControlForOpenApiURL is mill api to controll individual devices
+	gen2DeviceControlURL = baseURL + "uds/gen2DeviceControlForOpenApi"
+	// gen3DeviceControlForOpenApiURL is mill api to controll individual devices
+	gen3DeviceControlURL = baseURL + "uds/gen3DeviceControlForOpenApi"
 	// getIndependentDevicesURL is mill api to get list of devices in unassigned room
 	getIndependentDevicesURL = baseURL + "uds/getIndependentDevices2020"
 	// selectDevicebyRoomURL is mill api to search device list by room
 	selectDevicebyRoomURL = baseURL + "uds/selectDevicebyRoom2020"
+	// selectDeviceURL is mill api to get single device from device id
+	selectDeviceURL = baseURL + "uds/selectDevice2020"
 	// selectHomeListURL is mill api to search housing list
 	selectHomeListURL = baseURL + "uds/selectHomeList"
 	// selectRoombyHomeURL is mill api to search room list by home
 	selectRoombyHomeURL = baseURL + "uds/selectRoombyHome2020"
+)
+
+// Define subDomainID that represents device generation
+var (
+	gen2 = [...]int{863, 5316, 5317, 5332, 5333, 1000}
+	gen3 = [...]int{6979, 6981, 6980, 6982}
 )
 
 // Config is used to specify credential to Mill API
@@ -64,11 +78,20 @@ type Config struct {
 type Client struct {
 	httpResponse *http.Response
 
+	ErrorCode  int64  `json:"errorCode"`
+	Message    string `json:"message"`
+	StatusCode int64  `json:"statusCode"`
+	Success    bool   `json:"success"`
+
 	Data struct {
 		Homes              []Home   `json:"homeList"`
 		Rooms              []Room   `json:"roomList"`
 		Devices            []Device `json:"deviceList"`
 		IndependentDevices []Device `json:"deviceInfoList"`
+		DeviceInfo         struct {
+			IndependentTemp float64 `json:"independentTemp"`
+			PowerStatus     int     `json:"powerStatus"`
+		} `json:"deviceInfo"`
 	} `json:"data"`
 }
 
@@ -97,6 +120,8 @@ type Device struct {
 	Lock                            int     `json:"lock"`
 	Humidity                        int     `json:"humidity"`
 	ShowChildLock                   int     `json:"showChildLock"`
+	SetpointTemp                    float64 `json:"setpointTemp"`
+	PowerStatus                     int     `json:"powerStatus"`
 }
 
 type Home struct {
@@ -141,7 +166,7 @@ type Room struct {
 	RoomName                        string   `json:"roomName"`
 	Eco2                            int      `json:"eco2"`
 	CurrentMode                     int      `json:"currentMode"`
-	HeatStatus                      int      `json:"heatStatus"`
+	PowerStatus                     int      `json:"powerStatus"`
 	OffLineDeviceNum                int      `json:"offLineDeviceNum"`
 	HolidayEndTime                  int      `json:"holidayEndTime"`
 	IndependentCount                int      `json:"independentCount"`
@@ -241,6 +266,7 @@ func (c *Client) GetAllDevices(accessToken string) ([]Device, []Room, []Home, []
 			allIndependentDevices = append(allIndependentDevices, independentDevices.Data.IndependentDevices[device])
 		}
 	}
+
 	return allDevices, allRooms, allHomes, allIndependentDevices, nil
 }
 
@@ -289,7 +315,24 @@ func (c *Client) GetDeviceList(accessToken string, roomID int64) (*Client, error
 
 	resp, err := http.DefaultClient.Do(req)
 	processHTTPResponse(resp, err, c)
+
 	return c, nil
+}
+
+func GetDeviceSetpointAndMode(accessToken string, deviceID int64) (float64, int, error) {
+	url := fmt.Sprintf("%s%s%d", selectDeviceURL, "?deviceId=", deviceID)
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		log.Error(fmt.Errorf("Can't get single device, error: ", err))
+	}
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Access_token", accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+
+	c := new(Client)
+	processHTTPResponse(resp, err, c)
+	return c.Data.DeviceInfo.IndependentTemp, c.Data.DeviceInfo.PowerStatus, err
 }
 
 func (c *Client) GetIndependentDevices(accessToken string, homeId int64) (*Client, error) {
@@ -307,28 +350,76 @@ func (c *Client) GetIndependentDevices(accessToken string, homeId int64) (*Clien
 	return c, nil
 }
 
-func (cf *Config) TempControl(accessToken string, deviceId string, newTemp string) error {
-	url := fmt.Sprintf("%s%s%s%s%s%s", deviceControlURL, "?deviceId=", deviceId, "&holdTemp=", newTemp, "&operation=1&status=1")
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return err
+func (cf *Config) TempControl(accessToken string, deviceId string, newTemp string, subDomainID int) error {
+	gen := getGeneration(subDomainID)
+	var err error
+	switch gen {
+	case "gen1":
+		err = cf.Gen1TempControl(accessToken, deviceId, newTemp)
+	case "gen2":
+		err = cf.Gen2TempControl(accessToken, deviceId, newTemp, subDomainID)
+	case "gen3":
+		err = cf.Gen3TempControl(accessToken, deviceId, newTemp, subDomainID)
 	}
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Access_token", accessToken)
+	return err
+}
 
-	resp, err := http.DefaultClient.Do(req)
-	processHTTPResponse(resp, err, cf)
+func (cf *Config) Gen1TempControl(accessToken string, deviceId string, newTemp string) error {
+	url := fmt.Sprintf("%s%s%s%s%s%s",
+		deviceControlURL,
+		"?deviceId=",
+		deviceId,
+		"&holdTemp=",
+		newTemp,
+		"&operation=1&status=1",
+	)
+
+	err := cf.postRequest(url, accessToken)
 	if err != nil {
 		return err
-	}
-	log.Debug("url: ", url)
-	if cf.ErrorCode != 0 {
-		return fmt.Errorf("errorcode from request: %d", cf.ErrorCode)
 	}
 	return nil
 }
 
-func (cf *Config) ModeControl(accessToken string, deviceId string, oldTemp int64, newMode string) bool {
+func (cf *Config) Gen2TempControl(accessToken string, deviceId string, newTemp string, subDomainID int) error {
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s",
+		gen2DeviceControlURL,
+		"?deviceId=",
+		deviceId,
+		"&holdTemp=",
+		newTemp,
+		"&subDomain=",
+		strconv.Itoa(subDomainID),
+		"&operation=1&status=1",
+	)
+
+	err := cf.postRequest(url, accessToken)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cf *Config) Gen3TempControl(accessToken string, deviceId string, newTemp string, subDomainID int) error {
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s",
+		gen3DeviceControlURL,
+		"?deviceId=",
+		deviceId,
+		"&holdTemp=",
+		newTemp,
+		"&subDomain=",
+		strconv.Itoa(subDomainID),
+		"&operation=SINGLE_CONTROL_TEMP&status=1",
+	)
+
+	err := cf.postRequest(url, accessToken)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cf *Config) ModeControl(accessToken string, deviceId string, oldTemp float64, newMode string) bool {
 	var mode int
 	if newMode == "heat" {
 		mode = 1
@@ -353,7 +444,7 @@ func (cf *Config) ModeControl(accessToken string, deviceId string, oldTemp int64
 		log.Debug("Error in DeviceControl: ", err)
 	}
 
-	if cf.ErrorCode == 0 {
+	if cf.ErrorCode == 0 || cf.ErrorCode == 102 || cf.ErrorCode == 200 {
 		return true
 	}
 	return false
@@ -433,8 +524,25 @@ func processHTTPResponse(resp *http.Response, err error, holder interface{}) err
 	return nil
 }
 
+func GetSetpointAndModeForAllDevices(accessToken string, allDevices []Device) {
+	for i := range allDevices {
+		// device := d
+		// setpointTemp, err := GetDeviceSetpoint(accessToken, device.DeviceID)
+		setpointTemp, mode, err := GetDeviceSetpointAndMode(accessToken, allDevices[i].DeviceID)
+		if err != nil {
+			log.Error(fmt.Errorf("Can't get device setpoint, error: ", err))
+		} else {
+			allDevices[i].SetpointTemp = setpointTemp
+			allDevices[i].PowerStatus = mode
+		}
+	}
+}
+
 func (c *Client) UpdateLists(accessToken string, hc []interface{}, rc []interface{}, dc []interface{}, idc []interface{}) (homelist []interface{}, roomlist []interface{}, devicelist []interface{}, independentdevicelist []interface{}) {
 	allDevices, allRooms, allHomes, allIndependentDevices, err := c.GetAllDevices(accessToken)
+
+	GetSetpointAndModeForAllDevices(accessToken, allDevices)
+
 	if err != nil {
 		// handle err
 		log.Error(fmt.Errorf("Can't update lists, error: ", err))
@@ -452,4 +560,37 @@ func (c *Client) UpdateLists(accessToken string, hc []interface{}, rc []interfac
 		idc = append(idc, allIndependentDevices[device])
 	}
 	return hc, rc, dc, idc
+}
+
+func (cf *Config) postRequest(url string, accessToken string) error {
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Access_token", accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	processHTTPResponse(resp, err, cf)
+	if err != nil {
+		return err
+	}
+	if cf.ErrorCode != 0 { // Mill returns errorcode 0 on success
+		return fmt.Errorf("errorcode from request: %d", cf.ErrorCode)
+	}
+	return nil
+}
+
+func getGeneration(subDomainID int) string {
+	for _, s := range gen2 {
+		if subDomainID == s {
+			return "gen2"
+		}
+	}
+	for _, s := range gen3 {
+		if subDomainID == s {
+			return "gen3"
+		}
+	}
+	return "gen1"
 }

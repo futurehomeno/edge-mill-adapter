@@ -108,51 +108,67 @@ func (fc *FromFimpRouter) routeFimpMessage(newMsg *fimpgo.Message) {
 		case "cmd.setpoint.set":
 			fc.setpointSet(newMsg, config)
 
-		// case "cmd.setpoint.get_report":
-		// 	// You can ONLY get setpoint_report from devices that are independent(!). All devices have "holiday_temp" attribute, which for some reason is set temp on independent devices.
-		// 	// Will always be 0 if it is not an independent device.
-		// 	deviceIndex, err := fc.states.FindDeviceFromDeviceID(addr)
-		// 	if err != nil {
-		// 		log.Error(fmt.Errorf("Can't find device from deviceID, error: ", err))
-		// 	}
-		// 	device := reflect.ValueOf(fc.states.DeviceCollection[deviceIndex])
-		// 	setpointTemp := strconv.FormatInt(device.FieldByName("SetpointTemp").Interface().(int64), 10)
+		case "cmd.setpoint.get_report":
+			log.Debug("cmd.setpoint.get_report")
+			deviceIndex, err := fc.states.FindDeviceFromDeviceID(addr)
+			if err != nil {
+				log.Error(fmt.Errorf("Can't find device from deviceID, error: ", err))
+				return
+			}
+			device := reflect.ValueOf(fc.states.DeviceCollection[deviceIndex])
+			setpointTemp := device.FieldByName("SetpointTemp").Interface().(float64)
 
-		// 	if setpointTemp != "0" {
-		// 		val := map[string]interface{}{
-		// 			"type": "heat",
-		// 			"temp": setpointTemp,
-		// 			"unit": "C",
-		// 		}
-		// 		adr := &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: model.ServiceName, ResourceAddress: "1", ServiceName: "thermostat", ServiceAddress: addr}
-		// 		msg := fimpgo.NewMessage("evt.setpoint.report", "thermostat", fimpgo.VTypeStrMap, val, nil, nil, newMsg.Payload)
-		// 		fc.mqt.Publish(adr, msg)
-		// 	}
+			if setpointTemp != 0 {
+				val := map[string]interface{}{
+					"type": "heat",
+					"temp": setpointTemp,
+					"unit": "C",
+				}
+				adr := &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: model.ServiceName, ResourceAddress: "1", ServiceName: "thermostat", ServiceAddress: addr}
+				msg := fimpgo.NewMessage("evt.setpoint.report", "thermostat", fimpgo.VTypeStrMap, val, nil, nil, newMsg.Payload)
+				fc.mqt.Publish(adr, msg)
+			}
 
-		// case "cmd.mode.set":
-		// 	val, _ := newMsg.Payload.GetStringValue()
-		// 	log.Debug("Trying to set new mode: ", val)
+		case "cmd.mode.set":
+			log.Debug("cmd.mode.set")
+			val, _ := newMsg.Payload.GetStringValue()
+			log.Debug("Trying to set new mode: ", val)
 
-		// 	deviceIndex, err := fc.states.FindDeviceFromDeviceID(addr)
-		// 	if err != nil {
-		// 		log.Error(fmt.Errorf("Can't find device from deviceID, error: ", err))
-		// 	}
-		// 	device := reflect.ValueOf(fc.states.DeviceCollection[deviceIndex])
-		// 	currentSetTemp := device.FieldByName("SetpointTemp").Interface().(int64)
-		// 	log.Debug("setpointTemp: ", currentSetTemp)
+			deviceIndex, err := fc.states.FindDeviceFromDeviceID(addr)
+			if err != nil {
+				log.Error(fmt.Errorf("Can't find device from deviceID, error: ", err))
+				return
+			}
+			device := reflect.ValueOf(fc.states.DeviceCollection[deviceIndex])
+			currentSetTemp := device.FieldByName("SetpointTemp").Interface().(float64)
+			log.Debug("setpointTemp: ", currentSetTemp)
 
-		// 	if config.ModeControl(fc.configs.Auth.AccessToken, addr, currentSetTemp, val) {
-		// 		adr := &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: model.ServiceName, ResourceAddress: "1", ServiceName: "thermostat", ServiceAddress: addr}
-		// 		msg := fimpgo.NewMessage("evt.mode.report", "thermostat", fimpgo.VTypeString, val, nil, nil, newMsg.Payload)
-		// 		fc.mqt.Publish(adr, msg)
-		// 		log.Info("Mode updated, new mode: ", val)
-		// 	} else {
-		// 		log.Error("Something went wrong when changing mode")
-		// 	}
-		// Do we need this? Will/should allways be heat
+			if config.ModeControl(fc.configs.Auth.AccessToken, addr, currentSetTemp, val) {
+				adr := &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: model.ServiceName, ResourceAddress: "1", ServiceName: "thermostat", ServiceAddress: addr}
+				msg := fimpgo.NewMessage("evt.mode.report", "thermostat", fimpgo.VTypeString, val, nil, nil, newMsg.Payload)
+				fc.mqt.Publish(adr, msg)
+				log.Info("Mode updated, new mode: ", val)
+			} else {
+				log.Error("Something went wrong when changing mode")
+			}
 
 		case "cmd.mode.get_report":
-			val := "heat"
+			log.Debug("cmd.mode.get.report")
+			deviceIndex, err := fc.states.FindDeviceFromDeviceID(addr)
+			if err != nil {
+				log.Error(fmt.Errorf("Can't find device from deviceID, error: ", err))
+				return
+			}
+			device := reflect.ValueOf(fc.states.DeviceCollection[deviceIndex])
+			currentMode := device.FieldByName("PowerStatus").Interface().(int)
+			log.Debug("mode: ", currentMode)
+
+			var val string
+			if currentMode == 1 {
+				val = "heat"
+			} else if currentMode == 0 {
+				val = "off"
+			}
 
 			adr := &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: model.ServiceName, ResourceAddress: "1", ServiceName: "thermostat", ServiceAddress: addr}
 			msg := fimpgo.NewMessage("evt.mode.report", "thermostat", fimpgo.VTypeString, val, nil, nil, newMsg.Payload)
@@ -168,9 +184,10 @@ func (fc *FromFimpRouter) routeFimpMessage(newMsg *fimpgo.Message) {
 			if err != nil {
 				// handle err
 				log.Error(fmt.Errorf("Can't find device from deviceID, error: ", err))
+				return
 			}
 			device := reflect.ValueOf(fc.states.DeviceCollection[deviceIndex])
-			currentTemp := device.FieldByName("CurrentTemp").Interface().(float32)
+			currentTemp := device.FieldByName("AmbientTemp").Interface().(float64)
 
 			val := currentTemp
 			props := fimpgo.Props{}
@@ -319,8 +336,6 @@ func (fc *FromFimpRouter) routeFimpMessage(newMsg *fimpgo.Message) {
 			fc.states.SaveToFile()
 
 		case "cmd.system.sync":
-
-			// only
 			fc.states.DeviceCollection, fc.states.RoomCollection, fc.states.HomeCollection, fc.states.IndependentDeviceCollection = nil, nil, nil, nil
 			fc.states.HomeCollection, fc.states.RoomCollection, fc.states.DeviceCollection, fc.states.IndependentDeviceCollection = client.UpdateLists(fc.configs.Auth.AccessToken, fc.states.HomeCollection, fc.states.RoomCollection, fc.states.DeviceCollection, fc.states.IndependentDeviceCollection)
 			log.Debug(fc.configs.Auth.AccessToken)
@@ -505,17 +520,16 @@ func (fc *FromFimpRouter) routeFimpMessage(newMsg *fimpgo.Message) {
 				log.Error(fmt.Errorf("Can't get strValue, error: ", err))
 			}
 			nodeID, err := fc.states.FindDeviceFromDeviceID(deviceID)
-			if err != nil { // normal error handling did not work for some reason, find out why
-				// handle error
-				log.Error("error") // this never executes
+			if err != nil {
+				log.Error("error: ", err)
+				return
 			}
-			if nodeID != 9999 { // using this method instead
-				inclReport := ns.SendInclusionReport(nodeID, fc.states.DeviceCollection)
 
-				msg := fimpgo.NewMessage("evt.thing.inclusion_report", "mill", fimpgo.VTypeObject, inclReport, nil, nil, nil)
-				adr := fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeAdapter, ResourceName: "mill", ResourceAddress: "1"}
-				fc.mqt.Publish(&adr, msg)
-			}
+			inclReport := ns.SendInclusionReport(nodeID, fc.states.DeviceCollection)
+
+			msg := fimpgo.NewMessage("evt.thing.inclusion_report", "mill", fimpgo.VTypeObject, inclReport, nil, nil, nil)
+			adr := fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeAdapter, ResourceName: "mill", ResourceAddress: "1"}
+			fc.mqt.Publish(&adr, msg)
 
 		case "cmd.thing.inclusion":
 			//flag , _ := newMsg.Payload.GetBoolValue()
@@ -528,16 +542,15 @@ func (fc *FromFimpRouter) routeFimpMessage(newMsg *fimpgo.Message) {
 				return
 			}
 			deviceID := val["address"]
-			deviceExists, err := fc.states.FindDeviceFromDeviceID(deviceID)
-			if deviceExists != 9999 {
-				val := map[string]interface{}{
-					"address": deviceID,
-				}
-				adr := &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeAdapter, ResourceName: "mill", ResourceAddress: "1"}
-				msg := fimpgo.NewMessage("evt.thing.exclusion_report", "mill", fimpgo.VTypeObject, val, nil, nil, newMsg.Payload)
-				fc.mqt.Publish(adr, msg)
-				log.Info("Device with deviceID: ", deviceID, " has been removed from network.")
+
+			val = map[string]string{
+				"address": deviceID,
 			}
+
+			adr := &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeAdapter, ResourceName: "mill", ResourceAddress: "1"}
+			msg := fimpgo.NewMessage("evt.thing.exclusion_report", "mill", fimpgo.VTypeObject, val, nil, nil, newMsg.Payload)
+			fc.mqt.Publish(adr, msg)
+			log.Info("Device with deviceID: ", deviceID, " has been removed from network.")
 
 		case "cmd.app.uninstall":
 			for i := 0; i < len(fc.states.DeviceCollection); i++ {
