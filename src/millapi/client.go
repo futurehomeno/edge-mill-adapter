@@ -56,126 +56,132 @@ var (
 // SecretToken: Secret Token from api registration at http://api.millheat.com. Token is sent to mail.
 // Username: Your mill app account username
 // Password: Your mill app account password
-type Config struct {
-	ErrorCode  int    `json:"errorCode"`
-	Message    string `json:"message"`
-	StatusCode int    `json:"statusCode"`
-	Success    bool   `json:"success"`
+type (
+	Config struct {
+		ErrorCode  int    `json:"errorCode"`
+		Message    string `json:"message"`
+		StatusCode int    `json:"statusCode"`
+		Success    bool   `json:"success"`
 
-	Password string `json:"password"`
-	Username string `json:"username"`
+		Password string `json:"password"`
+		Username string `json:"username"`
 
-	Data struct {
-		AuthorizationCode string `json:"authorization_code"`
-		AccessToken       string `json:"access_token"`
-		RefreshToken      string `json:"refresh_token"`
-		ExpireTime        int64  `json:"expireTime"`
-		RefreshExpireTime int64  `json:"refresh_expireTime"`
-	} `json:"data"`
-}
+		Data struct {
+			AuthorizationCode string `json:"authorization_code"`
+			AccessToken       string `json:"access_token"`
+			RefreshToken      string `json:"refresh_token"`
+			ExpireTime        int64  `json:"expireTime"`
+			RefreshExpireTime int64  `json:"refresh_expireTime"`
+		} `json:"data"`
+	}
 
-// Client to make request to Mill API
-type Client struct {
-	httpResponse *http.Response
+	// Client to make request to Mill API
+	Client struct {
+		httpResponse *http.Response
 
-	ErrorCode  int64  `json:"errorCode"`
-	Message    string `json:"message"`
-	StatusCode int64  `json:"statusCode"`
-	Success    bool   `json:"success"`
+		ErrorCode  int64  `json:"errorCode"`
+		Message    string `json:"message"`
+		StatusCode int64  `json:"statusCode"`
+		Success    bool   `json:"success"`
 
-	Data struct {
-		Homes              []Home   `json:"homeList"`
-		Rooms              []Room   `json:"roomList"`
-		Devices            []Device `json:"deviceList"`
-		IndependentDevices []Device `json:"deviceInfoList"`
-		DeviceInfo         struct {
-			IndependentTemp float64 `json:"independentTemp"`
-			PowerStatus     int     `json:"powerStatus"`
-		} `json:"deviceInfo"`
-	} `json:"data"`
-}
+		Data ResponseData `json:"data"`
+	}
 
-// Device is a mill heater
-type Device struct {
-	ShowPreHeat                     int     `json:"showPreHeat"`
-	DeviceType                      int     `json:"deviceType"`
-	Tvoc                            int     `json:"tvoc"`
-	ShowBusinessLock                int     `json:"showBusinessLock"`
-	HeatingStatus                   int     `json:"heatingStatus"`
-	AmbientTemp                     float64 `json:"ambientTemp"`
-	WindowsStatus                   int     `json:"windowsStatus"`
-	TemperatureControlPermission    int     `json:"temperatureControlPermission"`
-	MaxTemperaturePermission        int     `json:"maxTemperaturePermission"`
-	OnlineStatus                    int     `json:"onlineStatus"`
-	CanChangeTemp                   int     `json:"canChangeTemp"`
-	ShowOpen                        int     `json:"showOpen"`
-	DeviceID                        int64   `json:"deviceId"`
-	DeviceName                      string  `json:"deviceName"`
-	PreHeatStatus                   int     `json:"preHeatStatus"`
-	Mac                             string  `json:"mac"`
-	Eco2                            int     `json:"eco2"`
-	ControlDeviceIndividuallySource int     `json:"controlDeviceIndividuallySource"`
-	SubDomainID                     int     `json:"subDomainId"`
-	CurrentMonthKwh                 int     `json:"currentMonthKwh"`
-	Lock                            int     `json:"lock"`
-	Humidity                        int     `json:"humidity"`
-	ShowChildLock                   int     `json:"showChildLock"`
-	SetpointTemp                    float64 `json:"setpointTemp"`
-	PowerStatus                     int     `json:"powerStatus"`
-}
+	ResponseData struct {
+		Homes              []Home     `json:"homeList"`
+		Rooms              []Room     `json:"roomList"`
+		Devices            []Device   `json:"deviceList"`
+		IndependentDevices []Device   `json:"deviceInfoList"`
+		DeviceInfo         DeviceInfo `json:"deviceInfo"`
+	}
 
-type Home struct {
-	HomeName         string      `json:"homeName"`
-	IsHoliday        int         `json:"isHoliday"`
-	HolidayStartTime int         `json:"holidayStartTime"`
-	TimeZone         string      `json:"timeZone"`
-	ModeMinute       int         `json:"modeMinute"`
-	ModeStartTime    int64       `json:"modeStartTime"`
-	HolidayTemp      int         `json:"holidayTemp"`
-	ModeHour         int         `json:"modeHour"`
-	CurrentMode      int         `json:"currentMode"`
-	HolidayEndTime   int         `json:"holidayEndTime"`
-	HomeType         interface{} `json:"homeType"`
-	HomeID           int64       `json:"homeId"`
-	ProgramID        int64       `json:"programId"`
-}
+	DeviceInfo struct {
+		IndependentTemp float64 `json:"independentTemp"`
+		PowerStatus     int     `json:"powerStatus"`
+	}
 
-type Room struct {
-	ShowBusinessLock                int      `json:"showBusinessLock"`
-	TotalDevice                     int      `json:"totalDevice"`
-	MaxTemperaturePermission        int      `json:"maxTemperaturePermission"`
-	OnlineSensorDeviceNum           int      `json:"onlineSensorDeviceNum"`
-	ComfortTemp                     int      `json:"comfortTemp"`
-	AwayTemp                        int      `json:"awayTemp"`
-	RoomID                          int64    `json:"roomId"`
-	ChangeTemperaturePermission     int      `json:"changeTemperaturePermission"`
-	Humidity                        int      `json:"humidity"`
-	HolidayTempType                 int      `json:"holidayTempType"`
-	RoomDeviceOnline                int      `json:"roomDeviceOnline"`
-	BackMinute                      int      `json:"backMinute"`
-	Tvoc                            int      `json:"tvoc"`
-	ShowPreHeat                     int      `json:"showPreHeat"`
-	OverrideContinuous              int      `json:"overrideContinuous"`
-	IndependentDeviceIds            []string `json:"independentDeviceIds"`
-	RoomTemp                        int      `json:"roomTemp"`
-	RoomProgramID                   int64    `json:"roomProgramId"`
-	OverrideContinuousHour          int      `json:"overrideContinuousHour"`
-	RoomProgram                     string   `json:"roomProgram"`
-	ShowOpen                        int      `json:"showOpen"`
-	ControlDeviceIndividuallySource string   `json:"controlDeviceIndividuallySource"`
-	RoomName                        string   `json:"roomName"`
-	Eco2                            int      `json:"eco2"`
-	CurrentMode                     int      `json:"currentMode"`
-	PowerStatus                     int      `json:"powerStatus"`
-	OffLineDeviceNum                int      `json:"offLineDeviceNum"`
-	HolidayEndTime                  int      `json:"holidayEndTime"`
-	IndependentCount                int      `json:"independentCount"`
-	SleepTemp                       int      `json:"sleepTemp"`
-	CurrentMonthKwh                 int      `json:"currentMonthKwh"`
-	OnlineDeviceNum                 int      `json:"onlineDeviceNum"`
-	ShowChildLock                   int      `json:"showChildLock"`
-	ProgramMode                     int      `json:"programMode"`
-}
+	// Device is a mill heater
+	Device struct {
+		ShowPreHeat                     int     `json:"showPreHeat"`
+		DeviceType                      int     `json:"deviceType"`
+		Tvoc                            int     `json:"tvoc"`
+		ShowBusinessLock                int     `json:"showBusinessLock"`
+		HeatingStatus                   int     `json:"heatingStatus"`
+		AmbientTemp                     float64 `json:"ambientTemp"`
+		WindowsStatus                   int     `json:"windowsStatus"`
+		TemperatureControlPermission    int     `json:"temperatureControlPermission"`
+		MaxTemperaturePermission        int     `json:"maxTemperaturePermission"`
+		OnlineStatus                    int     `json:"onlineStatus"`
+		CanChangeTemp                   int     `json:"canChangeTemp"`
+		ShowOpen                        int     `json:"showOpen"`
+		DeviceID                        int64   `json:"deviceId"`
+		DeviceName                      string  `json:"deviceName"`
+		PreHeatStatus                   int     `json:"preHeatStatus"`
+		Mac                             string  `json:"mac"`
+		Eco2                            int     `json:"eco2"`
+		ControlDeviceIndividuallySource int     `json:"controlDeviceIndividuallySource"`
+		SubDomainID                     int     `json:"subDomainId"`
+		CurrentMonthKwh                 int     `json:"currentMonthKwh"`
+		Lock                            int     `json:"lock"`
+		Humidity                        int     `json:"humidity"`
+		ShowChildLock                   int     `json:"showChildLock"`
+		SetpointTemp                    float64 `json:"setpointTemp"`
+		PowerStatus                     int     `json:"powerStatus"`
+	}
+
+	Home struct {
+		HomeName         string      `json:"homeName"`
+		IsHoliday        int         `json:"isHoliday"`
+		HolidayStartTime int         `json:"holidayStartTime"`
+		TimeZone         string      `json:"timeZone"`
+		ModeMinute       int         `json:"modeMinute"`
+		ModeStartTime    int64       `json:"modeStartTime"`
+		HolidayTemp      int         `json:"holidayTemp"`
+		ModeHour         int         `json:"modeHour"`
+		CurrentMode      int         `json:"currentMode"`
+		HolidayEndTime   int         `json:"holidayEndTime"`
+		HomeType         interface{} `json:"homeType"`
+		HomeID           int64       `json:"homeId"`
+		ProgramID        int64       `json:"programId"`
+	}
+
+	Room struct {
+		ShowBusinessLock                int      `json:"showBusinessLock"`
+		TotalDevice                     int      `json:"totalDevice"`
+		MaxTemperaturePermission        int      `json:"maxTemperaturePermission"`
+		OnlineSensorDeviceNum           int      `json:"onlineSensorDeviceNum"`
+		ComfortTemp                     int      `json:"comfortTemp"`
+		AwayTemp                        int      `json:"awayTemp"`
+		RoomID                          int64    `json:"roomId"`
+		ChangeTemperaturePermission     int      `json:"changeTemperaturePermission"`
+		Humidity                        int      `json:"humidity"`
+		HolidayTempType                 int      `json:"holidayTempType"`
+		RoomDeviceOnline                int      `json:"roomDeviceOnline"`
+		BackMinute                      int      `json:"backMinute"`
+		Tvoc                            int      `json:"tvoc"`
+		ShowPreHeat                     int      `json:"showPreHeat"`
+		OverrideContinuous              int      `json:"overrideContinuous"`
+		IndependentDeviceIds            []string `json:"independentDeviceIds"`
+		RoomTemp                        int      `json:"roomTemp"`
+		RoomProgramID                   int64    `json:"roomProgramId"`
+		OverrideContinuousHour          int      `json:"overrideContinuousHour"`
+		RoomProgram                     string   `json:"roomProgram"`
+		ShowOpen                        int      `json:"showOpen"`
+		ControlDeviceIndividuallySource string   `json:"controlDeviceIndividuallySource"`
+		RoomName                        string   `json:"roomName"`
+		Eco2                            int      `json:"eco2"`
+		CurrentMode                     int      `json:"currentMode"`
+		PowerStatus                     int      `json:"powerStatus"`
+		OffLineDeviceNum                int      `json:"offLineDeviceNum"`
+		HolidayEndTime                  int      `json:"holidayEndTime"`
+		IndependentCount                int      `json:"independentCount"`
+		SleepTemp                       int      `json:"sleepTemp"`
+		CurrentMonthKwh                 int      `json:"currentMonthKwh"`
+		OnlineDeviceNum                 int      `json:"onlineDeviceNum"`
+		ShowChildLock                   int      `json:"showChildLock"`
+		ProgramMode                     int      `json:"programMode"`
+	}
+)
 
 // NewClient create a handle authentication to Mill API
 func (config *Config) NewClient(authCode string, password string, username string) (string, string, int64, int64) {
@@ -319,7 +325,7 @@ func (c *Client) GetDeviceList(accessToken string, roomID int64) (*Client, error
 	return c, nil
 }
 
-func GetDeviceSetpointAndMode(accessToken string, deviceID int64) (float64, int, error) {
+func GetIndependentTempAndPowerStatus(accessToken string, deviceID int64) (float64, int, error) {
 	url := fmt.Sprintf("%s%s%d", selectDeviceURL, "?deviceId=", deviceID)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -524,11 +530,11 @@ func processHTTPResponse(resp *http.Response, err error, holder interface{}) err
 	return nil
 }
 
-func GetSetpointAndModeForAllDevices(accessToken string, allDevices []Device) {
+func SetSetpointAndModeForAllDevices(accessToken string, allDevices []Device) {
 	for i := range allDevices {
 		// device := d
 		// setpointTemp, err := GetDeviceSetpoint(accessToken, device.DeviceID)
-		setpointTemp, mode, err := GetDeviceSetpointAndMode(accessToken, allDevices[i].DeviceID)
+		setpointTemp, mode, err := GetIndependentTempAndPowerStatus(accessToken, allDevices[i].DeviceID)
 		if err != nil {
 			log.Error(fmt.Errorf("Can't get device setpoint, error: ", err))
 		} else {
@@ -541,7 +547,7 @@ func GetSetpointAndModeForAllDevices(accessToken string, allDevices []Device) {
 func (c *Client) UpdateLists(accessToken string, hc []interface{}, rc []interface{}, dc []interface{}, idc []interface{}) (homelist []interface{}, roomlist []interface{}, devicelist []interface{}, independentdevicelist []interface{}) {
 	allDevices, allRooms, allHomes, allIndependentDevices, err := c.GetAllDevices(accessToken)
 
-	GetSetpointAndModeForAllDevices(accessToken, allDevices)
+	SetSetpointAndModeForAllDevices(accessToken, allDevices)
 
 	if err != nil {
 		// handle err
