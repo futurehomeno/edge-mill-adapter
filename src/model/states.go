@@ -116,7 +116,6 @@ func (st *States) FindDeviceFromDeviceID(addr string) (index int, err error) {
 			return index, nil
 		}
 	}
-	index = 9999 // using err did not work
-	log.Debug(err)
+	err = fmt.Errorf("No device with ID %s", addr)
 	return index, err
 }

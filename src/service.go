@@ -88,6 +88,7 @@ func main() {
 	//------------------ Sample code --------------------------------------
 	PollString := configs.PollTimeMin
 	PollTime, err := strconv.Atoi(PollString)
+
 	for {
 		appLifecycle.WaitForState("main", model.AppStateRunning)
 		log.Info("Starting ticker")
@@ -124,7 +125,7 @@ func main() {
 			for i := 0; i < len(states.DeviceCollection); i++ {
 				device := reflect.ValueOf(states.DeviceCollection[i])
 				deviceId := strconv.FormatInt(device.FieldByName("DeviceID").Interface().(int64), 10)
-				currentTemp := device.FieldByName("CurrentTemp").Interface().(float32)
+				currentTemp := device.FieldByName("AmbientTemp").Interface().(float64)
 				tempVal := currentTemp
 				props := fimpgo.Props{}
 				props["unit"] = "C"
@@ -133,17 +134,30 @@ func main() {
 				msg := fimpgo.NewMessage("evt.sensor.report", "sensor_temp", fimpgo.VTypeFloat, tempVal, props, nil, nil)
 				mqtt.Publish(adr, msg)
 
-				setpointTemp := strconv.FormatInt(device.FieldByName("SetpointTemp").Interface().(int64), 10)
+				setpointTemp := device.FieldByName("SetpointTemp").Interface().(float64)
 				setpointVal := map[string]interface{}{
 					"type": "heat",
 					"temp": setpointTemp,
 					"unit": "C",
 				}
-				if setpointTemp != "0" {
+				if setpointTemp != 0 {
 					adr = &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: model.ServiceName, ResourceAddress: "1", ServiceName: "thermostat", ServiceAddress: deviceId}
 					msg = fimpgo.NewMessage("evt.setpoint.report", "thermostat", fimpgo.VTypeStrMap, setpointVal, nil, nil, nil)
 					mqtt.Publish(adr, msg)
 				}
+
+				mode := device.FieldByName("PowerStatus").Interface().(int)
+				var val string
+				if mode == 1 {
+					val = "heat"
+				} else if mode == 0 {
+					val = "off"
+				}
+
+				adr = &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: model.ServiceName, ResourceAddress: "1", ServiceName: "thermostat", ServiceAddress: deviceId}
+				msg = fimpgo.NewMessage("evt.mode.report", "thermostat", fimpgo.VTypeString, val, nil, nil, nil)
+				mqtt.Publish(adr, msg)
+
 				// -----------------------------------------------------------------------------------------------
 			}
 			states.SaveToFile()
