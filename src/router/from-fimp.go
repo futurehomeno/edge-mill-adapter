@@ -87,16 +87,12 @@ func (fc *FromFimpRouter) routeFimpMessage(newMsg *fimpgo.Message) {
 			} else {
 				fc.configs.Auth.ExpireTime = 1
 			}
-			fc.states.SaveToFile()
+			fc.configs.SaveToFile()
 		} else if millis > fc.configs.Auth.RefreshExpireTime {
 			log.Error("30 day refreshExpireTime has expired. Restard adapter or send cmd.auth.login")
 		}
 	}
 
-	// Update home- room- and devicelists
-	fc.states.DeviceCollection, fc.states.RoomCollection, fc.states.HomeCollection, fc.states.IndependentDeviceCollection = nil, nil, nil, nil
-	fc.states.HomeCollection, fc.states.RoomCollection, fc.states.DeviceCollection, fc.states.IndependentDeviceCollection = client.UpdateLists(fc.configs.Auth.AccessToken, fc.states.HomeCollection, fc.states.RoomCollection, fc.states.DeviceCollection, fc.states.IndependentDeviceCollection)
-	fc.states.SaveToFile()
 	log.Debug(" ")
 	log.Debug("New fimp msg")
 	addr := strings.Replace(newMsg.Addr.ServiceAddress, "_0", "", 1)
@@ -215,7 +211,7 @@ func (fc *FromFimpRouter) routeFimpMessage(newMsg *fimpgo.Message) {
 			fc.configs.UID = newMsg.Payload.UID
 
 		case "cmd.auth.set_tokens":
-			if fc.configs.Auth.AuthorizationCode != "" {
+			if fc.configs.Auth.AuthorizationCode != "" && fc.configs.Auth.AccessToken == "" {
 				fc.configs.Auth.AccessToken, fc.configs.Auth.RefreshToken, fc.configs.Auth.ExpireTime, fc.configs.Auth.RefreshExpireTime = config.NewClient(fc.configs.Auth.AuthorizationCode, fc.configs.Password, fc.configs.Username)
 				fc.configs.Username = ""
 				fc.configs.Password = ""
