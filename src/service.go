@@ -135,9 +135,10 @@ func main() {
 				mqtt.Publish(adr, msg)
 
 				setpointTemp := device.FieldByName("SetpointTemp").Interface().(float64)
+				setpointTempString := fmt.Sprintf("%f", setpointTemp)
 				setpointVal := map[string]interface{}{
 					"type": "heat",
-					"temp": setpointTemp,
+					"temp": setpointTempString,
 					"unit": "C",
 				}
 				if setpointTemp != 0 {

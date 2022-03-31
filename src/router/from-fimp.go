@@ -113,11 +113,12 @@ func (fc *FromFimpRouter) routeFimpMessage(newMsg *fimpgo.Message) {
 			}
 			device := reflect.ValueOf(fc.states.DeviceCollection[deviceIndex])
 			setpointTemp := device.FieldByName("SetpointTemp").Interface().(float64)
+			setpointTempString := fmt.Sprintf("%f", setpointTemp)
 
 			if setpointTemp != 0 {
 				val := map[string]interface{}{
 					"type": "heat",
-					"temp": setpointTemp,
+					"temp": setpointTempString,
 					"unit": "C",
 				}
 				adr := &fimpgo.Address{MsgType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: model.ServiceName, ResourceAddress: "1", ServiceName: "thermostat", ServiceAddress: addr}
